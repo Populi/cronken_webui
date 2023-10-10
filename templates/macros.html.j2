@@ -1,0 +1,47 @@
+{% macro run_table(table_title, run_data, valid_actions) %}
+  <div style="margin-bottom:2em;">
+    <h4>{{ table_title }}</h4>
+    {% if run_data %}
+    <table style="width:100%;" cellspacing="0" class="rowhighlight js-table" id="running_table">
+      <thead>
+        <tr>
+          <th>Started</th><th>Name</th><th>Run ID</th><th>Server</th><th>Runtime</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in run_data %}
+        <tr>
+          <td>{{ run["start_time"] }}</td>
+          <td>{{ run["job_name"] }}</td>
+          <td>{{ run["run_id"] }}</td>
+          <td>{{ run["host"] }}</td>
+          <td>{{ run["duration"] }}</td>
+          <td>
+            {% if 'output' in valid_actions %}
+            <a href="/runs/{{ run['run_id'] }}/output" class="fa-lg" data-dialog-title="{{ run['name'] }} started {{ run['started_at'] }} on {{ run['server_name'] }}"></a>
+            {% endif %}
+            {% if 'rerun' in valid_actions %}
+            <a href="/runs/{{ run['run_id'] }}/rerun" class="fa-sync"></a>
+            {% endif %}
+            {% if 'terminate' in valid_actions %}
+            <a href="/runs/{{ run['run_id'] }}/terminate" class="fa-ban"></a>
+            {% endif %}
+            {% if 'kill' in valid_actions %}
+            <a href="/runs/{{ run['run_id'] }}/kill" class="fa-bomb"></a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No jobs found</p>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro job_action(job_name, target_url, extra_classes) %}
+  <li>
+    <a href="{{ target_url }}" class="drop-down-list-link allow_propagation {{ ' '.join(extra_classes) }}"> {{ link_text }} </a>
+  </li>
+{% endmacro %}

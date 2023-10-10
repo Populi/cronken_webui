@@ -1,0 +1,71 @@
+{% extends "layout.html.j2" %}
+
+{# Variables needed to evaluate this template: active_runs, completed_runs, failed_runs, jobs #}
+
+{% from 'macros.html.j2' import job_action, run_table with context %}
+{% block title %}Cronken{% endblock %}
+{% block content %}
+<div class="content">
+  <div id="col1">
+    {{ run_table("Running", active_runs, ['output', 'rerun', 'terminate', 'kill']) }}
+    {{ run_table("Completed", completed_runs, ['output', 'rerun']) }}
+    {{ run_table("Failed", failed_runs, ['output', 'rerun']) }}
+  </div>
+  <div id="col2">
+    <h4>Job Definitions <a class="dialog" href="/jobs/show_create">add</a></h4>
+    <div>
+      {% for job_name, job_def in jobs.items() | sort(attribute=0) %}
+      <div class="remote_deletable" style="position:relative; margin:1em 0; padding-bottom:1em; border-bottom: 2px dashed #ddd;">
+        <div style="float:right;">
+          <div style="display:inline-block; position:absolute; text-align:center; vertical-align:top; top:0; right:0;">
+            <a href="#" class="far fa-lg fa-ellipsis-vertical show_dropdown " style="padding:0 0.3em;"></a>
+            <!--<div class=" drop-down-right js-job-dropdown  drop-down" style="display: none;"> -->
+            <div class=" drop-down-right js-job-dropdown  drop-down">
+              <div class="drop-down-arrows">
+                <div class="drop-down-arrow-bottom"></div>
+                <div class="drop-down-arrow-top"></div>
+              </div>
+              <div class="drop-down-list">
+                <ul>
+                  {% set escaped_job_name = job_name | urlencode | replace("/", "%2F") %}
+                  <!-- {{ url_job_name }} -->
+                  {% set job_base = "/jobs/" + escaped_job_name %}
+                  {% if job_def.get('paused', False) %}
+                  {{ job_action('Resume', job_base + '/resume', ['js-job-action']) }}
+                  {% else %}
+                  {{ job_action('Pause', job_base + '/pause', ['js-job-action']) }}
+                  {% endif %}
+                  {{ job_action('Trigger', job_base + '/trigger', ['js-job-action']) }}
+                  {{ job_action('View Completed', job_base + '/show_completed', []) }}
+                  {{ job_action('View Failed', job_base + '/show_failed', []) }}
+                  {{ job_action('Delete', job_base + '/delete', ['js-job-action']) }}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <strong>
+          <a href="jobs/show_update?job_name={{ job_name | urlencode }}" class="dialog">{{ job_name }}</a>
+          {% if job_def.get("job_state", {}).get("paused", False) %}
+          <span class="pill " style="margin-left:0.5em; color:white; background-color:var(--gold-500);">paused</span>
+          {% endif %}
+        </strong>
+        <pre class="command-line language-bash" style="width:95%;">{{ job_def.get("job_args", {}).get("cmd", "") }}</pre>
+        <div style="display:flex; margin-bottom:0.5em;">
+          <i style="display:inline-block; width:100px;">Schedule</i>
+          <div style="display:inline-block;">{{ job_def.get("pretty_schedule", "") }}</div>
+        </div>
+        <div style="display:flex; margin-bottom:0.5em;">
+          <i style="display:inline-block; width:100px;">Lock</i>
+          <div style="display:inline-block;">{{ "Yes" if job_def.get("job_args", {}).get("lock", True) else "No" }}</div>
+        </div>
+        <div style="display:flex; margin-bottom:0.5em;">
+          <i style="display:inline-block; width:100px;">TTL</i>
+          <div style="display:inline-block;">{{ job_def.get("job_args", {}).get("ttl", "Unknown") }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
