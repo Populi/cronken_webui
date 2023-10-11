@@ -193,6 +193,7 @@ async def run_rerun(request: web.Request):
     raw_run_data = await cronken.rclient.hget(f"{cronken.namespace}:rundata", run_id)
     run_data = json.loads(raw_run_data.decode("utf-8"))
     await cronken.send_command("trigger", run_data["job_name"])
+    return web.Response(status=200, text=f"Triggered {run_data['job_name']}")
 
 
 @routes.get("/runs/{run_id}/terminate")
@@ -200,6 +201,7 @@ async def run_terminate(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     run_id: str = request.match_info["run_id"]
     await cronken.send_command("terminate_run", run_id)
+    return web.Response(status=200, text=f"Terminated {run_id}")
 
 
 @routes.get("/runs/{run_id}/kill")
@@ -207,6 +209,7 @@ async def run_kill(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     run_id: str = request.match_info["run_id"]
     await cronken.send_command("kill_run", run_id)
+    return web.Response(status=200, text=f"Killed {run_id}")
 
 
 @routes.get("/jobs/show_create")
