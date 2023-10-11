@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import AsyncIterable, Dict, List, Optional, Union
+from typing import AsyncIterable, Dict, List, Union
 from urllib.parse import quote as urlencode
 
 import humanize
