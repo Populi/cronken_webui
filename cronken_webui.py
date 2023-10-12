@@ -110,7 +110,7 @@ class CronkenInfo:
                 continue
             run["run_id"] = run_id.decode("utf-8")
             run["start_time"] = humanize.naturaltime(datetime.fromtimestamp(float(run["start_time"])))
-            if run["duration"]:
+            if run.get("duration", None):
                 run["duration"] = humanize.naturaldelta(run["duration"])
             yield run
 
