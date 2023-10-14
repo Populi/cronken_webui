@@ -1,8 +1,7 @@
-{% macro run_table(table_title, run_data, valid_actions) %}
+{% macro run_table(run_data, valid_actions) %}
   <div style="margin-bottom:2em;">
-    <h4>{{ table_title }}</h4>
     {% if run_data %}
-    <table style="width:100%;" cellspacing="0" class="rowhighlight js-table" id="running_table">
+    <table style="width:100%;" cellspacing="0" class="rowhighlight" id="running-table">
       <thead>
         <tr>
           <th>Started</th><th>Name</th><th>Run ID</th><th>Server</th><th>Runtime</th><th>Actions</th>
@@ -18,16 +17,24 @@
           <td>{{ run["duration"] }}</td>
           <td>
             {% if 'output' in valid_actions %}
-            <a href="/runs/{{ run['run_id'] }}/output" class="fa-lg" data-dialog-title="{{ run['name'] }} started {{ run['started_at'] }} on {{ run['server_name'] }}"></a>
+            <button title="View output" data-url="/runs/{{ run['run_id'] }}/output" data-dialog-title="Run {{ run['run_id'] }}" class="btn btn-sm btn-primary job-output">
+              <i class="fa fa-terminal"></i>
+            </button>
             {% endif %}
             {% if 'rerun' in valid_actions %}
-            <a href="/runs/{{ run['run_id'] }}/rerun" class="fa-sync"></a>
+            <button title="Run again" data-url="/runs/{{ run['run_id'] }}/rerun" data-confirm="Are you sure you want to run this job again?" class="btn btn-sm btn-primary run-action">
+              <i class="fa fa-sync"></i>
+            </button>
             {% endif %}
             {% if 'terminate' in valid_actions %}
-            <a href="/runs/{{ run['run_id'] }}/terminate" class="fa-ban"></a>
+            <button title="Terminate" data-url="/runs/{{ run['run_id'] }}/terminate" data-confirm="Are you sure you want to terminate this job?" class="btn btn-sm btn-primary run-action">
+              <i class="fa fa-ban"></i>
+            </button>
             {% endif %}
             {% if 'kill' in valid_actions %}
-            <a href="/runs/{{ run['run_id'] }}/kill" class="fa-bomb"></a>
+            <button title="Kill" data-url="/runs/{{ run['run_id'] }}/kill" data-confirm="Are you sure you want to kill this job?" class="btn btn-sm btn-primary run-action">
+              <i class="fa fa-bomb"></i>
+            </button>
             {% endif %}
           </td>
         </tr>
@@ -35,13 +42,11 @@
       </tbody>
     </table>
     {% else %}
-    <p>No jobs found</p>
+    <div class="alert alert-secondary" role="alert">No runs found</div>
     {% endif %}
   </div>
 {% endmacro %}
 
-{% macro job_action(job_name, target_url, extra_classes) %}
-  <li>
-    <a href="{{ target_url }}" class="drop-down-list-link allow_propagation {{ ' '.join(extra_classes) }}"> {{ link_text }} </a>
-  </li>
+{% macro job_action(link_text, target_url, extra_classes) %}
+  <a class="dropdown-item {{ ' '.join(extra_classes) }}" href="{{ target_url }}">{{ link_text }}</a>
 {% endmacro %}

@@ -1,0 +1,12 @@
+{% extends "layout.html.j2" %}
+
+{# Variables needed to evaluate this template: runs #}
+
+{% from 'macros.html.j2' import job_action, run_table with context %}
+{% block title %}Cronken - Completed Runs{% endblock %}
+{% block content %}
+
+<h4>Completed Runs</h4>
+{{ run_table(runs, ['output', 'rerun']) }}
+
+{% endblock %}
