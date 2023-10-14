@@ -131,15 +131,35 @@ async def dashboard(request):
     active_runs = [x async for x in cronken.recent_runs("rundata:active", 0)]
     completed_runs = [x async for x in cronken.recent_runs("results:success", 20)]
     failed_runs = [x async for x in cronken.recent_runs("results:fail", 20)]
+    return {"active_runs": active_runs, "completed_runs": completed_runs, "failed_runs": failed_runs}
+
+@routes.get("/completed")
+@jinja_template("completed.html.j2")
+async def completed(request):
+    cronken: CronkenInfo = request.app["cronken"]
+    runs = [x async for x in cronken.recent_runs("results:success", 100)]
+    return {"runs": runs}
+
+@routes.get("/failed")
+@jinja_template("failed.html.j2")
+async def completed(request):
+    cronken: CronkenInfo = request.app["cronken"]
+    runs = [x async for x in cronken.recent_runs("results:fail", 100)]
+    return {"runs": runs}
+
+@routes.get("/setup")
+@jinja_template("setup.html.j2")
+async def completed(request):
+    cronken: CronkenInfo = request.app["cronken"]
     jobs = await cronken.get_jobs()
     for job_def in jobs.values():
         job_def["pretty_schedule"] = cronken.pretty_schedule(job_def)
-    return {"active_runs": active_runs, "completed_runs": completed_runs, "failed_runs": failed_runs, "jobs": jobs}
+    return {"jobs": jobs}
 
 
-@routes.get("/jobs/{job_name}/show_completed")
+@routes.get("/jobs/{job_name}/completed")
 @jinja_template("view_job_runs.html.j2")
-async def show_completed(request: web.Request):
+async def runs_completed(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     job_name = request.match_info["job_name"]
     try:
@@ -153,13 +173,13 @@ async def show_completed(request: web.Request):
         "queue_friendly_name": "Completed",
         "job_name": job_name,
         "run_data": run_data,
-        "next_url": f"/jobs/{urlencode(job_name, safe='')}/show_completed?offset={offset + 100}",
+        "next_url": f"/jobs/{urlencode(job_name, safe='')}/completed?offset={offset + 100}" if offset and len(run_data) == offset else ""
     }
 
 
-@routes.get("/jobs/{job_name}/show_failed")
+@routes.get("/jobs/{job_name}/failed")
 @jinja_template("view_job_runs.html.j2")
-async def show_failed(request: web.Request):
+async def runs_failed(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     job_name = request.match_info["job_name"]
     try:
@@ -173,12 +193,12 @@ async def show_failed(request: web.Request):
         "queue_friendly_name": "Completed",
         "job_name": job_name,
         "run_data": run_data,
-        "next_url": f"/jobs/{urlencode(job_name, safe='')}/show_completed?offset={offset + 100}",
+        "next_url": f"/jobs/{urlencode(job_name, safe='')}/completed?offset={offset + 100}"  if offset and len(run_data) == offset else "",
     }
 
 
 @routes.get("/runs/{run_id}/output")
-@jinja_template("output.html.j2")
+@jinja_template("_output.html.j2")
 async def run_output(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     run_id: str = request.match_info["run_id"]
@@ -186,7 +206,7 @@ async def run_output(request: web.Request):
     return {"title": "run_output", "output": output}
 
 
-@routes.get("/runs/{run_id}/rerun")
+@routes.put("/runs/{run_id}/rerun")
 async def run_rerun(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     run_id: str = request.match_info["run_id"]
@@ -196,7 +216,7 @@ async def run_rerun(request: web.Request):
     return web.Response(status=200, text=f"Triggered {run_data['job_name']}")
 
 
-@routes.get("/runs/{run_id}/terminate")
+@routes.put("/runs/{run_id}/terminate")
 async def run_terminate(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     run_id: str = request.match_info["run_id"]
@@ -212,12 +232,12 @@ async def run_kill(request: web.Request):
     return web.Response(status=200, text=f"Killed {run_id}")
 
 
-@routes.get("/jobs/show_create")
-@routes.get("/jobs/show_update")
-@jinja_template("create_update_job.html.j2")
-async def show_create_update(request: web.Request):
+@routes.get("/jobs/create")
+@routes.get("/jobs/update")
+@jinja_template("_job_form.html.j2")
+async def show_update(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
-    job_name = request.rel_url.query.get("job_name", "")
+    job_name:str = request.rel_url.query.get("job_name", "")
     job_def_raw = await cronken.rclient.hget(f"{cronken.namespace}:jobs", job_name) if job_name else b"{}"
     try:
         job_def = json.loads(job_def_raw.decode("utf-8"))
@@ -229,14 +249,15 @@ async def show_create_update(request: web.Request):
 
 @routes.post("/jobs/update")
 async def update_job(request: web.Request):
-    cronken: CronkenInfo = request.app["cronken"]
     raw_post = await request.post()
+    cronken: CronkenInfo = request.app["cronken"]
     job_name = raw_post.get("job_name", "").strip()
     if not raw_post.get("job_name", "").strip():
         raise web.HTTPBadRequest(reason="Missing job name")
     if not raw_post.get("job_args|cmd", "").strip():
         raise web.HTTPBadRequest(reason="Missing command")
     old_job_name = raw_post.get("original_name", "")
+
     job_def = defaultdict(dict)
     for raw_key, value in raw_post.items():
         if value and "|" in raw_key:
@@ -273,6 +294,42 @@ async def update_job(request: web.Request):
         await cronken.send_command(action, job_name)
 
     return web.Response(status=200, text="OK")
+
+@routes.post("/jobs/{job_name}/trigger")
+async def trigger_job(request: web.Request):
+    cronken: CronkenInfo = request.app["cronken"]
+    job_name: str = request.match_info["job_name"]
+
+    await cronken.send_command("trigger", job_name)
+
+    return web.Response(status=200, text=f"Triggered {job_name}")
+
+@routes.post("/jobs/{job_name}/pause")
+async def trigger_job(request: web.Request):
+    cronken: CronkenInfo = request.app["cronken"]
+    job_name: str = request.match_info["job_name"]
+
+    await cronken.send_command("pause", job_name)
+
+    return web.Response(status=200, text=f"Paused {job_name}")
+
+@routes.post("/jobs/{job_name}/resume")
+async def trigger_job(request: web.Request):
+    cronken: CronkenInfo = request.app["cronken"]
+    job_name: str = request.match_info["job_name"]
+
+    await cronken.send_command("resume", job_name)
+
+    return web.Response(status=200, text=f"Resumed {job_name}")
+
+@routes.post("/jobs/{job_name}/delete")
+async def delete_job(request: web.Request):
+    cronken: CronkenInfo = request.app["cronken"]
+    job_name: str = request.match_info["job_name"]
+
+    await cronken.delete_job(job_name)
+
+    return web.Response(status=200, text=f"Deleted {job_name}")
 
 
 def main():

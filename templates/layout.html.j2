@@ -1,19 +1,68 @@
 <html>
-    <head>
-        <meta charset="UTF-8">
-        <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
-        <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
-        <link rel="manifest" href="/static/site.webmanifest">
-        <link rel="shortcut icon" href="/static/favicon.ico">
-        <meta name="msapplication-TileColor" content="#da532c">
-        <meta name="msapplication-config" content="/static/browserconfig.xml">
-        <meta name="theme-color" content="#ffffff">
-        <title>
-            {% block title %}{% endblock %}
-        </title>
-    </head>
-    <body>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+    <link rel="manifest" href="/static/site.webmanifest">
+    <link rel="shortcut icon" href="/static/favicon.ico">
+
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="msapplication-config" content="/static/browserconfig.xml">
+    <meta name="theme-color" content="#ffffff">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet"crossorigin="anonymous">
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="/static/js/bootstrap-notify.min.js"></script>
+
+    <link href="/static/css/screen.css" rel="stylesheet" >
+    <script src="/static/js/cronken.js"></script>
+
+    <title>
+      {% block title %}{% endblock %}
+    </title>
+  </head>
+  <body>
+    <nav id="header" class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <img alt="Cronken Logo" src="/static/images/logo.png" style="width:50px; filter:invert(1);"/>
+
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+              <a class="nav-link" href="/dashboard">Dashboard</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/completed">Completed</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/failed">Failed</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/setup">Setup</a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+      <div id="content">
         {% block content %}{% endblock %}
-    </body>
+      </div>
+
+      <div class="modal" id="job-output">
+        <div class="modal-dialog">
+          <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Run Output</h5>
+            <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+            </div>
+            <div class="modal-body pb-4">
+            </div>
+          </div>
+        </div>
+      </div>
+  </body>
 </html>

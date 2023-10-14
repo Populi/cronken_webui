@@ -1,0 +1,58 @@
+{# Variables needed to evaluate this template: job_name, job_def #}
+
+<div class="modal-header">
+  <h5 class="modal-title">Job Definition</h5>
+  <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+
+<div class="modal-body">
+  <form class="job-form" action="/jobs/update" method="post" autocomplete="off">
+    <div class="mb-3">
+      <label class="form-label" for="name">Name</label>
+      <input type="text" name="job_name" id="name" class="form-control" placeholder="MyCoolJob (no spaces allowed)" value="{{ job_name }}"/>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="command">Command</label>
+      <textarea name="job_args|cmd" id="command" class="form-control" placeholder="echo Hello World" >{{ job_def.get('job_args', {}).get('cmd', '') }}</textarea>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="cron_schedule">Cron Schedule</label>
+      <table>
+        <tr><td>cronstring</td><td><input type="text" name="cron_args|cronstring" id="cron_schedule" placeholder="5 4 * * *" value="{{ job_def.get('cron_args', {}).get('cronstring', '') }}" /></td></tr>
+        <tr><td colspan="2" style="text-align:center;"><em>or</em></td></tr>
+        {% for key in ['year', 'month', 'day', 'week', 'day_of_week', 'hour', 'minute', 'second', 'start_date', 'end_date', 'timezone', 'jitter'] %}
+          <tr><td>{{ key }}</td><td><input type="text" name="cron_args|{{ key }}" id="cron_{{ key }}" value="{{ job_def.get('cron_args', {}).get(key, '')}}" /></td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Lock</label>
+      <div class="form-check">
+        <input type="radio" id="lock-yes" class="form-check-input" name="job_args|lock" value="1" {{ "checked" if job_def.get('job_args', {}).get('lock', True) else "" }} />
+        <label class="form-check-label" for="lock-yes">Yes</label>
+
+        <input type="radio" id="lock-no" name="job_args|lock" value="0" {{ "" if job_def.get('job_args', {}).get('lock', True) else "checked" }} />
+        <label class="form-check-label" for="lock-no">No</label>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="ttl">TTL</label>
+      <div class="fld-bdy">
+        <input type="number" id="ttl" name="job_args|ttl" value="{{ job_def.get('job_args', {}).get('ttl', '10') }}">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="paused">Status</label>
+      <select class="form-select" name="job_state|paused" id="paused" style="">
+        <option value="0" {{ '' if job_def.get('job_state', {}).get('paused', False) else 'selected="selected"' }}>Active</option>
+        <option value="1" {{ 'selected="selected"' if job_def.get('job_state', {}).get('paused', False) else '' }}>Paused</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button type="submit" class="btn btn-primary">Save</button>
+    </div>
+    <input type="hidden" name="original_name" value="{{ job_name }}">
+  </form>
+</div>

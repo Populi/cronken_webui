@@ -1,0 +1,70 @@
+{% extends "layout.html.j2" %}
+
+{# Variables needed to evaluate this template: jobs #}
+
+{% from 'macros.html.j2' import job_action, run_table with context %}
+{% block title %}Cronken{% endblock %}
+{% block content %}
+  <h4>
+    Job Definitions
+    <button class="btn btn-primary add-job-button" data-href="/jobs/create"><i class="fa fa-plus"></i></button>
+  </h4>
+  {% if jobs %}
+    <div class="d-flex flex-wrap align-items-center"  style="gap: 2em">
+      {% for job_name, job_def in jobs.items() | sort(attribute=0) %}
+      <div class="card" style="width:500px;">
+        <h5 class="card-header">
+          {{ job_name }}
+          {% if job_def.get("job_state", {}).get("paused", False) %}
+          <span class="badge badge-warning">paused</span>
+          {% endif %}
+
+          <div class="dropdown" style="float:right;">
+            <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle='dropdown' aria-haspopup="true" aria-expanded="false">
+              <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+            </button>
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+              {% set escaped_job_name = job_name | urlencode | replace("/", "%2F") %}
+              {% set job_base = "/jobs/" + escaped_job_name %}
+
+              {% if job_def.get('paused', False) %}
+              {% set hide_paused = "d-none" %}
+              {% set hide_resume = "" %}
+              {% else %}
+              {% set hide_paused = "" %}
+              {% set hide_resume = "d-none" %}
+              {% endif %}
+
+              {{ job_action('Edit', '/jobs/update?job_name=' + escaped_job_name, ['job-update']) }}
+              {{ job_action('Resume', job_base + '/resume', ['job-action job-resume', hide_resume]) }}
+              {{ job_action('Pause', job_base + '/pause', ['job-action job-pause', hide_paused]) }}
+              {{ job_action('Trigger', job_base + '/trigger', ['job-action']) }}
+              {{ job_action('View Completed', job_base + '/completed', []) }}
+              {{ job_action('View Failed', job_base + '/failed', []) }}
+              {{ job_action('Delete', job_base + '/delete', ['job-action', 'job-action-delete']) }}
+            </div>
+          </div>
+        </h5>
+
+        <div class="card-body">
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item">Schedule: {{ job_def.get("pretty_schedule", "") }}</li>
+            <li class="list-group-item">Lock: {{ "Yes" if job_def.get("job_args", {}).get("lock", True) else "No" }}</li>
+            <li class="list-group-item">TTL: {{ job_def.get("job_args", {}).get("ttl", "Unknown") }}</li>
+            <li class="list-group-item"><kbd>{{ job_def.get("job_args", {}).get("cmd", "") }}</kbd></li>
+          </ul>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+  <div class="alert alert-secondary" role="alert">No job definitions found</div>
+  {% endif %}
+
+  <div class="modal" id="update-job">
+    <div class="modal-dialog">
+      <div class="modal-content">
+      </div>
+    </div>
+  </div>
+{% endblock %}

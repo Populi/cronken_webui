@@ -5,15 +5,13 @@
 {% from 'macros.html.j2' import run_table with context %}
 {% block title %}{{ queue_friendly_name }} for {{ job_name }}{% endblock %}
 {% block content %}
-<div class="column_header">
-  <a href="/dashboard" class="remote_nav">
-    <span class="far fa-xl fa-angle-left fa-inherit fa-back_arrow"></span>Back to Cronken Dashboard
-  </a>
-</div>
+<h4>{{ queue_friendly_name }} for {{job_name}}</h4>
 
-{{ run_table('{} for {}'.format(queue_friendly_name, job_name), run_data, ['output']) }}
+{{ run_table(run_data, ['output']) }}
 
-<div style="background-color:var(--black-050); padding:9px;">
-  <a href="{{ next_url }}" class="remote_nav" style="float:right;">Next</a>&nbsp;
-</div>
+{% if next_url %}
+  <div style="background-color:var(--black-050); padding:9px;">
+    <a href="{{ next_url }}" class="remote_nav" style="float:right;">Next</a>&nbsp;
+  </div>
+{% endif %}
 {% endblock %}
