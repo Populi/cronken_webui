@@ -16,7 +16,7 @@
         <h5 class="card-header">
           {{ job_name }}
           {% if job_def.get("job_state", {}).get("paused", False) %}
-          <span class="badge badge-warning">paused</span>
+          <span class="badge bg-warning">paused</span>
           {% endif %}
 
           <div class="dropdown" style="float:right;">
