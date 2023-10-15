@@ -27,7 +27,7 @@
               {% set escaped_job_name = job_name | urlencode | replace("/", "%2F") %}
               {% set job_base = "/jobs/" + escaped_job_name %}
 
-              {% if job_def.get('paused', False) %}
+              {% if job_def.get('job_state', {}).get('paused', False) %}
               {% set hide_paused = "d-none" %}
               {% set hide_resume = "" %}
               {% else %}
