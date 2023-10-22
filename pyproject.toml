@@ -8,7 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.8"
 coredis = "^4.14.0"
-aiohttp = "^3.8.6"
+aiohttp = "<4.0.0"
 aiohttp-jinja2 = "^1.5.1"
 humanize = "^4.8.0"
 

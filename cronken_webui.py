@@ -5,7 +5,6 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncIterable, Dict, List, Union
-from urllib.parse import quote as urlencode
 
 import humanize
 from aiohttp import web
@@ -59,27 +58,27 @@ class CronkenInfo:
 
     async def get_job(self, job_name: str) -> Dict[str, dict]:
         raw_def = await self.rclient.hget(f"{self.namespace}:jobs", job_name)
-        try:
-            return json.loads(raw_def.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeError, AttributeError):
-            # If the job definition doesn't exist, it'll be None and trigger AttributeError when we try to decode
-            # If it exists but isn't valid UTF-8, it'll trigger UnicodeError
-            # If it exists but isn't valid JSON, it'll trigger json.JSONDecodeError
-            # If raw_def is None, don't bother logging a warning
-            if raw_def:
-                self.logger.warning(f"Couldn't parse job {job_name} definition: {raw_def}")
-            return {}
+        if raw_def:
+            try:
+                job_def = json.loads(raw_def)
+            except json.JSONDecodeError:
+                self.logger.warning(f"Couldn't parse job {job_name} definition {raw_def}")
+                return {}
+            return job_def
+        return {}
 
-    async def get_jobs(self) -> Dict[str, dict]:
+    async def get_jobs(self) -> Dict[str, Dict]:
         jobs = {}
         raw_jobs = await self.rclient.hgetall(f"{self.namespace}:jobs")
         for raw_name, raw_def in raw_jobs.items():
             try:
                 job_name = raw_name.decode("utf-8")
-                jobs[job_name] = json.loads(raw_def.decode("utf-8"))
+                job_def = json.loads(raw_def)
             except (json.JSONDecodeError, UnicodeError):
-                self.logger.warning(f"Couldn't parse job {raw_name} definition: {raw_def}")
+                self.logger.warning(f"Couldn't parse job {raw_name} definition {raw_def}")
                 continue
+            self.logger.debug(f"Found job {job_name} with definition {job_def}")
+            jobs[job_name] = job_def
         return jobs
 
     async def delete_job(self, job_name: str):
@@ -133,6 +132,7 @@ async def dashboard(request):
     failed_runs = [x async for x in cronken.recent_runs("results:fail", 20)]
     return {"active_runs": active_runs, "completed_runs": completed_runs, "failed_runs": failed_runs}
 
+
 @routes.get("/completed")
 @jinja_template("completed.html.j2")
 async def completed(request):
@@ -140,12 +140,14 @@ async def completed(request):
     runs = [x async for x in cronken.recent_runs("results:success", 100)]
     return {"runs": runs}
 
+
 @routes.get("/failed")
 @jinja_template("failed.html.j2")
 async def completed(request):
     cronken: CronkenInfo = request.app["cronken"]
     runs = [x async for x in cronken.recent_runs("results:fail", 100)]
     return {"runs": runs}
+
 
 @routes.get("/setup")
 @jinja_template("setup.html.j2")
@@ -167,13 +169,19 @@ async def runs_completed(request: web.Request):
     except ValueError:
         offset = 0
 
-    run_data = [x async for x in cronken.recent_runs(f"results:{job_name}:success", 100, offset=offset)]
+    try:
+        limit = int(request.rel_url.query.get("limit", 100))
+    except ValueError:
+        limit = 100
+
+    run_data = [x async for x in cronken.recent_runs(f"results:{job_name}:success", limit=limit, offset=offset)]
+    next_url = f"{request.rel_url.path}?offset={offset + 100}&limit={limit}"
 
     return {
         "queue_friendly_name": "Completed",
         "job_name": job_name,
         "run_data": run_data,
-        "next_url": f"/jobs/{urlencode(job_name, safe='')}/completed?offset={offset + 100}" if offset and len(run_data) == offset else ""
+        "next_url": next_url if len(run_data) == limit else ""
     }
 
 
@@ -187,13 +195,19 @@ async def runs_failed(request: web.Request):
     except ValueError:
         offset = 0
 
-    run_data = [x async for x in cronken.recent_runs(f"results:{job_name}:fail", 100, offset=offset)]
+    try:
+        limit = int(request.rel_url.query.get("limit", 100))
+    except ValueError:
+        limit = 100
+
+    run_data = [x async for x in cronken.recent_runs(f"results:{job_name}:fail", limit=limit, offset=offset)]
+    next_url = f"{request.rel_url.path}?offset={offset + 100}&limit={limit}"
 
     return {
         "queue_friendly_name": "Completed",
         "job_name": job_name,
         "run_data": run_data,
-        "next_url": f"/jobs/{urlencode(job_name, safe='')}/completed?offset={offset + 100}"  if offset and len(run_data) == offset else "",
+        "next_url": next_url if len(run_data) == limit else ""
     }
 
 
@@ -237,7 +251,7 @@ async def run_kill(request: web.Request):
 @jinja_template("_job_form.html.j2")
 async def show_update(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
-    job_name:str = request.rel_url.query.get("job_name", "")
+    job_name: str = request.rel_url.query.get("job_name", "")
     job_def_raw = await cronken.rclient.hget(f"{cronken.namespace}:jobs", job_name) if job_name else b"{}"
     try:
         job_def = json.loads(job_def_raw.decode("utf-8"))
@@ -278,22 +292,26 @@ async def update_job(request: web.Request):
         and job_def.get("cron_args", {}) == old_job_def.get("cron_args", {})
         and job_def.get("job_args", {}) == old_job_def.get("job_args", {})
     )
-    job_state_identical = old_job_def and old_job_def.get("job_state", {}) == job_def.get("job_state", {})
+    old_pause = old_job_def.get("job_state", {}).get("paused", False)
+    new_pause = job_def.get("job_state", {}).get("paused", False)
+    pause_identical = old_pause == new_pause
 
-    if not persistent_state_identical or not job_state_identical:
+    if not persistent_state_identical or not pause_identical:
         await cronken.set_job(job_name, job_def)
+        await cronken.send_command("validate", job_name)
 
     if old_job_name and old_job_name != job_name:
         await cronken.delete_job(old_job_name)
 
     if not persistent_state_identical:
-        await cronken.send_command('reload', {})
+        await cronken.send_command("reload", {})
 
-    if not job_state_identical:
-        action = 'pause' if job_def.get("job_state", {}).get("paused", False) else 'resume'
+    if not pause_identical:
+        action = "pause" if job_def.get("job_state", {}).get("paused", False) else "resume"
         await cronken.send_command(action, job_name)
 
     return web.Response(status=200, text="OK")
+
 
 @routes.post("/jobs/{job_name}/trigger")
 async def trigger_job(request: web.Request):
@@ -304,23 +322,38 @@ async def trigger_job(request: web.Request):
 
     return web.Response(status=200, text=f"Triggered {job_name}")
 
+
 @routes.post("/jobs/{job_name}/pause")
-async def trigger_job(request: web.Request):
+async def pause_job(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     job_name: str = request.match_info["job_name"]
 
     await cronken.send_command("pause", job_name)
 
+    job_def = await cronken.get_job(job_name)
+    if job_def:
+        job_def = defaultdict(dict, job_def)
+        job_def["job_state"]["paused"] = True
+        await cronken.set_job(job_name, job_def)
+
     return web.Response(status=200, text=f"Paused {job_name}")
 
+
 @routes.post("/jobs/{job_name}/resume")
-async def trigger_job(request: web.Request):
+async def resume_job(request: web.Request):
     cronken: CronkenInfo = request.app["cronken"]
     job_name: str = request.match_info["job_name"]
 
     await cronken.send_command("resume", job_name)
 
+    job_def = await cronken.get_job(job_name)
+    if job_def:
+        job_def = defaultdict(dict, job_def)
+        job_def["job_state"]["paused"] = False
+        await cronken.set_job(job_name, job_def)
+
     return web.Response(status=200, text=f"Resumed {job_name}")
+
 
 @routes.post("/jobs/{job_name}/delete")
 async def delete_job(request: web.Request):

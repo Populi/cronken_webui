@@ -130,6 +130,6 @@ function growl_success(message) {
   });
 }
 
-function reload_page(){
+function reload_page() {
   window.location.reload();
 }
