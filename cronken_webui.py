@@ -14,6 +14,41 @@ from aiohttp_jinja2 import template as jinja_template
 from coredis import Redis, RedisCluster
 from jinja2 import FileSystemLoader
 
+REQUIRED_CONFIGS = ["redis_info"]
+ALL_CONFIGS = {
+    "namespace": "{cronken}",
+    "log_level": "DEBUG"
+}
+ALL_CONFIGS.update({k: None for k in REQUIRED_CONFIGS})
+
+
+def get_config(prefix: str, all_configs: Dict) -> Dict:
+    final_config = {}
+    for key, default_value in all_configs.items():
+        env_value = os.environ.get(f"{prefix}_{key.upper()}", None)
+
+        # Cast env_value to the correct type, if it exists
+        if env_value is not None:
+            if isinstance(default_value, bool):
+                # bools in Python are instances of both bool and int, so this check needs to be before the>
+                env_value = env_value.lower() == "true"
+            elif isinstance(default_value, int):
+                env_value = int(env_value)
+
+        if env_value is None and default_value is None:
+            raise Exception(f"Required config entry '{key}' or env var '{prefix}_{key.upper()}' not set")
+
+        final_config[key] = env_value if env_value is not None else default_value
+
+    # Special processing for the redis node(s) to convert from "foo:1234,bar:5678" to structured data
+    if "redis_info" in final_config:
+        final_config["redis_info"] = [
+            {"host": node.split(":")[0], "port": int(node.split(":")[1])}
+            for node in final_config["redis_info"].split(",")
+        ]
+
+    return final_config
+
 
 class CronkenInfo:
     def __init__(self, redis_info: Union[List[Dict], Dict], namespace: str = "{cronken}", log_level: str = "DEBUG"):
@@ -369,11 +404,10 @@ def main():
     app = web.Application()
     jinja_setup(app, loader=FileSystemLoader(Path(__file__).parent.absolute() / "templates"), autoescape=True)
     jinja_env(app).filters["b64encode"] = lambda x: base64.b64encode(x.encode("utf-8")).decode("utf-8")
-    # jinja_env(app).filters["b64encode"] = base64.b64encode
 
     app.add_routes(routes)
 
-    cronken = CronkenInfo(redis_info={"host": "localhost", "port": 6379}, namespace="development:{cronken}")
+    cronken = CronkenInfo(**get_config("CRONKEN_WEBUI", ALL_CONFIGS))
     app["cronken"] = cronken
     web.run_app(app, host="0.0.0.0", port=8885)
 
