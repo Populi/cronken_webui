@@ -53,9 +53,9 @@ def get_config(prefix: str, all_configs: Dict) -> Dict:
 
 class CronkenInfo:
     def __init__(self, redis_info: Union[List[Dict], Dict], namespace: str = "{cronken}", log_level: str = "DEBUG"):
-        if type(redis_info) is dict:
-            # If we're passed a single host/port dict, assume it's a non-clustered Redis server
-            self.rclient = Redis(**redis_info)
+        if len(redis_info) == 1:
+            # If we're passed a single host/port, assume it's a non-clustered Redis server
+            self.rclient = Redis(**redis_info[0])
         else:
             # Assume it's a list of host/port dicts and init it as a RedisCluster
             self.rclient = RedisCluster(startup_nodes=redis_info)
